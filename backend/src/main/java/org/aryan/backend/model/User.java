@@ -1,11 +1,10 @@
 package org.aryan.backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.UuidGenerator;
-import org.hibernate.internal.build.AllowNonPortable;
 
 import java.time.Instant;
 import java.util.List;
@@ -27,5 +26,6 @@ public class User {
     private Instant createdAt = Instant.now();
 
     @OneToMany(mappedBy = "user")
+    @JsonIgnore
     private List<Websites> websitesList;
 }
