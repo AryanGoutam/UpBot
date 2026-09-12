@@ -14,11 +14,11 @@ function Navbar(){
                 <img src={leftLogo} alt="Left logo" />
                 <img src={centreLogo} alt="Centre logo" />
                 <img src={rightLogo} alt="Right logo" />
-                <span className="ml-2">UpBot</span>
+                <span className="ml-2 text-[#f6f4f0] font-bold text-2xl">UpBot</span>
             </div>
 
             {/* Navigation links */}
-            <div className="flex items-center gap-8">
+            <div className="flex items-center gap-8  text-[#f6f4f0] ">
                 <a href="#why-upbot">Why UpBot</a>
                 <a href="#architecture">Architecture</a>
                 

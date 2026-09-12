@@ -18,7 +18,7 @@ function WhyUpBot() {
   ];
 
   return (
-    <section className="min-h-screen  px-6 py-16 " id="why-upbot">
+    <section className="min-h-screen  px-6 py-20 " id="why-upbot">
 
       {/* Heading */}
       <div className="mx-auto max-w-4xl text-center">

@@ -2,7 +2,7 @@ function Architecture() {
   return (
     <section
       id="architecture"
-      className="min-h-screen px-6 py-20 text-white"
+      className="min-h-screen px-6 py-4 text-white"
     >
 
       <div className="mx-auto max-w-6xl">
