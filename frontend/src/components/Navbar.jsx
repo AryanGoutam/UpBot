@@ -1,6 +1,7 @@
 import leftLogo from "../assets/Polygon 1.svg";
 import centreLogo from "../assets/Brand mark.svg";
 import rightLogo from  "../assets/Polygon 2.svg";
+import { Link } from "react-router-dom";
 
 function Navbar(){
 
@@ -18,10 +19,11 @@ function Navbar(){
 
             {/* Navigation links */}
             <div className="flex items-center gap-8">
-                <a href="#why">Why UpBot</a>
-                <a href="#contact">Architecture</a>
-                <a href="/signin">Sign In</a>
-                <a href="/signup">Get Started</a>
+                <a href="#why-upbot">Why UpBot</a>
+                <a href="#architecture">Architecture</a>
+                
+                <Link to = "/sign-in"> Sign In</Link>
+                <Link to = "/sign-up">Get Started </Link>
             </div>
 
         </nav>

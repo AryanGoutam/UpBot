@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 
 function Hero(){
     return(
@@ -27,12 +28,12 @@ function Hero(){
             <div className="mt-10 flex gap-4">
 
                 {/* take this get started to sign up page */}
-                <a
-                    href="/signup"
+                <Link
+                    to="/sign-up"
                     className="px-6 py-3 bg-white text-black rounded-lg hover:bg-gray-200 transition"
                 >
                     Get started
-                </a>
+                </Link>
 
                 <a
                     href="#architecture"
