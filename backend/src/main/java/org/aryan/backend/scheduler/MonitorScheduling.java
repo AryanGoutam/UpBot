@@ -1,11 +1,9 @@
 package org.aryan.backend.scheduler;
 
 import org.aryan.backend.model.Websites;
-import org.aryan.backend.repo.MonitorRepo;
 import org.aryan.backend.repo.WebsiteRepo;
 import org.aryan.backend.service.MonitorService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.AutoConfigurationPackage;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
