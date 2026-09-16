@@ -23,6 +23,10 @@ public class UserService {
     }
 
     public User add(User user) {
+        if(userRepo.existsByEmail(user.getEmail())){
+            throw new RuntimeException("Email already exists");
+        }
+
         user.setCreatedAt(Instant.now());
         user.setPassword(encoder.encode(user.getPassword()));
         return userRepo.save(user);

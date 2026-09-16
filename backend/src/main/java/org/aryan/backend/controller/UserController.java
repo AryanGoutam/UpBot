@@ -1,6 +1,7 @@
 package org.aryan.backend.controller;
 
 import org.aryan.backend.model.User;
+import org.aryan.backend.service.JwtService;
 import org.aryan.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +19,8 @@ public class UserController {
     private UserService userService;
     @Autowired
     private AuthenticationManager authenticationManager;
+    @Autowired
+    private JwtService jwtService;
 
     @GetMapping("/users")
     private List<User> getAllUser(){
@@ -38,7 +41,7 @@ public class UserController {
                 .authenticate(new UsernamePasswordAuthenticationToken(user.getEmail(), user.getPassword()));
 
         if(authentication.isAuthenticated()){
-            return "Logged in !" ;
+            return jwtService.generateToken(user.getEmail());
         }
         return "Failed to log in ";
     }
