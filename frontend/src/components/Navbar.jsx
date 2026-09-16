@@ -22,7 +22,7 @@ function Navbar(){
                 <a href="#why-upbot">Why UpBot</a>
                 <a href="#architecture">Architecture</a>
                 
-                <Link to = "/sign-in"> Sign In</Link>
+                <Link to = "/login"> Log In</Link>
                 <Link to = "/sign-up">Get Started </Link>
             </div>
 
