@@ -28,7 +28,7 @@ public class WebsiteService {
         website.setName(request.name());
         website.setUrl(request.url());
         website.setStatus(request.status());
-        website.setCheck_interval(request.check_interval());
+        website.setCheckInterval(request.check_interval());
 
         return websitesRepo.save(website);
     }

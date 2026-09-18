@@ -24,10 +24,14 @@ public class Monitor {
 
     // one to many on websites db but not now
 
-    private LocalDateTime checked_at;
+    @Column(name = "checked_at")
+    private LocalDateTime checkedAt;
     private boolean up;
-    private Integer status_code;
-    private Long response_time;
-    private String error_message;
+    @Column(name = "status_code")
+    private Integer statusCode;
+    @Column(name = "response_time")
+    private Long responseTime;
+    @Column(name = "error_message")
+    private String errorMessage;
 
 }

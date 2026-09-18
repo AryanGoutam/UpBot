@@ -24,7 +24,8 @@ public class Websites {
     private String name;
     private String url;
     private String status;
-    private Integer check_interval;
+    @Column(name = "check_interval")
+    private Integer checkInterval ;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();

@@ -3,10 +3,10 @@ package org.aryan.backend.model.dto;
 import java.time.LocalDateTime;
 
 public record MonitorResultDto(
-         LocalDateTime checked_at,
+         LocalDateTime checkedAt,
          boolean up,
-         Integer status_code,
-         Long response_time,
-         String error_message
+         Integer statusCode,
+         Long responseTime,
+         String errorMessage
         ) {
 }

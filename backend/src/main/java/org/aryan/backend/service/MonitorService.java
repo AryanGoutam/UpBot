@@ -47,10 +47,10 @@ public class MonitorService {
             Monitor result = new Monitor();
 
             result.setWebsite(websites);
-            result.setChecked_at(LocalDateTime.now());
+            result.setCheckedAt(LocalDateTime.now());
             result.setUp(response.getStatusCode().is2xxSuccessful());
-            result.setStatus_code(response.getStatusCode().value());
-            result.setResponse_time(responseTime);
+            result.setStatusCode(response.getStatusCode().value());
+            result.setResponseTime(responseTime);
 
             monitorRepo.save(result);
 
@@ -60,11 +60,11 @@ public class MonitorService {
             Monitor result = new Monitor();
 
             result.setWebsite(websites);
-            result.setChecked_at(LocalDateTime.now());
+            result.setCheckedAt(LocalDateTime.now());
             result.setUp(false);
-            result.setStatus_code(null);
-            result.setResponse_time(responseTime);
-            result.setError_message(e.getMessage());
+            result.setStatusCode(null);
+            result.setResponseTime(responseTime);
+            result.setErrorMessage(e.getMessage());
 
             monitorRepo.save(result);
 
@@ -79,11 +79,11 @@ public class MonitorService {
 
         return monitorsList.stream()
                 .map(result -> new MonitorResultDto(
-                        result.getChecked_at(),
+                        result.getCheckedAt(),
                         result.isUp(),
-                        result.getStatus_code(),
-                        result.getResponse_time(),
-                        result.getError_message()
+                        result.getStatusCode(),
+                        result.getResponseTime(),
+                        result.getErrorMessage()
                 )).toList();
 
 
