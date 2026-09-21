@@ -8,7 +8,7 @@ public record DashBoardDTO(
         int operationalMonitors,
         int degradedMonitors,
         int stormAlert,
-        int overallUptime,
+        double overallUptime,
         String degradedMessage,
         String stormMessage,
 

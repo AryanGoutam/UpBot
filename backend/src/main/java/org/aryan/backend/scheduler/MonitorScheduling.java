@@ -18,7 +18,7 @@ public class MonitorScheduling {
     private MonitorService monitorService;
 
 
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedRate = 80000)
     public void mointorWebsite(){
         System.out.println("Scheduler is running");
         List<Websites> websites = websiteRepo.findAll();
