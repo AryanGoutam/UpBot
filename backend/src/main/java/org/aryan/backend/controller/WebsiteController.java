@@ -4,6 +4,7 @@ import org.aryan.backend.model.Websites;
 import org.aryan.backend.model.dto.WebsiteRequest;
 import org.aryan.backend.service.WebsiteService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,8 +18,9 @@ public class WebsiteController {
 
 
     @PostMapping("/website")
-    public Websites addWebsite(@RequestBody WebsiteRequest website){
-        return websiteService.add(website);
+    public Websites addWebsite(@RequestBody WebsiteRequest website, Authentication authentication){
+        String email = authentication.getName();
+        return websiteService.add(website,email);
     }
 
     @GetMapping("/websites")

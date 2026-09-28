@@ -116,7 +116,24 @@ public class DashboardService {
 
             Monitor latest = monitorRepo.findTopByWebsiteOrderByCheckedAtDesc(website);
 
-            if(latest == null) continue;
+            if (latest == null) {
+
+                MonitorResponseDTO response = new MonitorResponseDTO(
+                        website.getId(),
+                        website.getName(),
+                        website.getUrl(),
+                        "OPERATIONAL",
+                        null,
+                        0.0,
+                        website.getCheckInterval(),
+                        0,
+                        "PENDING",
+                        new ArrayList<>()
+                );
+
+                monitorResponse.add(response);
+                continue;
+            }
             active++;
 
             // uptime

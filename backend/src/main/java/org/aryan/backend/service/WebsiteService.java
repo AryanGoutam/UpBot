@@ -18,9 +18,12 @@ public class WebsiteService {
     @Autowired
     private UserRepo userRepo;
 
-    public Websites add(WebsiteRequest request) {
-        User user = userRepo.findById(request.userId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+    public Websites add(WebsiteRequest request, String email) {
+        User user = userRepo.findByEmail(email);
+
+        if (user == null) {
+            throw new RuntimeException("User not found");
+        }
 
         Websites website = new Websites();
 
