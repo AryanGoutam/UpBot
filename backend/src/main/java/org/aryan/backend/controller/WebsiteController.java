@@ -8,6 +8,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -26,6 +27,31 @@ public class WebsiteController {
     @GetMapping("/websites")
     public List<Websites> getWebsites(){
         return websiteService.getAll();
+    }
+
+    @PutMapping("/website/{websiteId}/status")
+    public Websites updateStatus(
+            @PathVariable Long websiteId,
+            @RequestBody Map<String, String> request,
+            Authentication authentication
+    ) {
+        String email = authentication.getName();
+
+        return websiteService.updateStatus(
+                websiteId,
+                request.get("status"),
+                email
+        );
+    }
+
+    @DeleteMapping("/website/{websiteId}")
+    public void deleteWebsite(
+            @PathVariable Long websiteId,
+            Authentication authentication
+    ) {
+        String email = authentication.getName();
+
+        websiteService.deleteWebsite(websiteId, email);
     }
 
 

@@ -23,7 +23,12 @@ public class MonitorScheduling {
         System.out.println("Scheduler is running");
         List<Websites> websites = websiteRepo.findAll();
 
-        for(Websites website:websites){
+        for(Websites website : websites){
+
+            if ("PAUSED".equalsIgnoreCase(website.getStatus())) {
+                continue;
+            }
+
             monitorService.checkWebsite(website);
         }
     }

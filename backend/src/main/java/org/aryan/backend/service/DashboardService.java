@@ -211,8 +211,8 @@ public class DashboardService {
 
         // overall uptime
         double overallUptime = 0;
-        if(totalChecks > 0){
-            overallUptime = ((double) totalChecks/totalUpChecks) ;
+        if (totalChecks > 0) {
+            overallUptime = ((double) totalUpChecks / totalChecks) * 100;
         }
 
         String degradedMessage;
