@@ -19,17 +19,29 @@ const Dashboard = () => {
 
   const fetchDashboard = async () => {
     try {
+      setLoading(true);
+      setError("");
+
+      const token = localStorage.getItem("token");
+
       const response = await axios.get(`${baseUrl}/api/dashboard`, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          Authorization: `Bearer ${token}`,
         },
       });
 
       setDashboard(response.data);
-      setError("");
     } catch (err) {
       console.error("Failed to fetch dashboard:", err);
-      setError("Unable to load dashboard data.");
+      console.error("Status:", err.response?.status);
+
+      if (err.response?.status === 401) {
+        localStorage.removeItem("token");
+        setError("Your session has expired. Please login again.");
+        return;
+      }
+
+      setError("Unable to load dashboard data. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -89,6 +101,57 @@ const Dashboard = () => {
       setAddingMonitor(false);
     }
   };
+  const handlePauseResume = async (monitor) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const newStatus =
+      monitor.status === "PAUSED"
+        ? "OPERATIONAL"
+        : "PAUSED";
+
+    await axios.put(
+      `${baseUrl}/api/website/${monitor.id}/status`,
+      {
+        status: newStatus,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    await fetchDashboard();
+
+  } catch (err) {
+    console.error("Failed to update monitor status:", err);
+    alert("Failed to update monitor status.");
+  }
+};
+
+
+const handleRemoveMonitor = async (monitorId) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    await axios.delete(
+      `${baseUrl}/api/website/${monitorId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    await fetchDashboard();
+
+  } catch (err) {
+    console.error("Failed to remove monitor:", err);
+    alert("Failed to remove monitor.");
+  }
+};
 
   const getStatusStyle = (status) => {
     switch (status?.toUpperCase()) {
@@ -135,14 +198,17 @@ const Dashboard = () => {
   if (error) {
     return (
       <div className="min-h-screen bg-[#061522] text-[#eee5d0] flex items-center justify-center">
-        <div className="bg-[#10263a] border border-[#263f53] rounded-xl p-6">
+        <div className="bg-[#10263a] border border-[#263f53] rounded-xl p-6 text-center">
           <p className="text-red-300 mb-4">{error}</p>
 
           <button
-            onClick={fetchDashboard}
-            className="px-4 py-2 rounded-lg bg-[#426b4c] hover:bg-[#507d5a] text-[#f1e8d4]"
+            onClick={() => {
+              localStorage.removeItem("token");
+              window.location.href = "/login";
+            }}
+            className="px-4 py-2 rounded-lg bg-[#426b4c] hover:bg-[#507d5a] text-[#f1e8d4] transition-colors"
           >
-            Retry
+            Go to Login
           </button>
         </div>
       </div>
@@ -609,11 +675,17 @@ const Dashboard = () => {
                   </div>
 
                   <div className="flex gap-2">
-                    <button className="px-3 py-1.5 rounded-md border border-[#263f52] text-[#8296a7] text-xs hover:bg-[#142d40]">
+                    <button
+                      onClick={() => handlePauseResume(monitor)}
+                      className="px-3 py-1.5 rounded-md border border-[#263f52] text-[#8296a7] text-xs hover:bg-[#142d40]"
+                    >
                       {monitor.status === "PAUSED" ? "Resume" : "Pause"}
                     </button>
 
-                    <button className="px-3 py-1.5 rounded-md border border-[#263f52] text-[#8296a7] text-xs hover:bg-[#142d40]">
+                    <button
+                      onClick={() => handleRemoveMonitor(monitor.id)}
+                      className="px-3 py-1.5 rounded-md border border-[#263f52] text-[#8296a7] text-xs hover:bg-[#142d40]"
+                    >
                       Remove
                     </button>
                   </div>
