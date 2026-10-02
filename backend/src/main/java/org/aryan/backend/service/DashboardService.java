@@ -151,7 +151,11 @@ public class DashboardService {
 
             String status;
 
-            if (!latest.isUp()) {
+            if ("PAUSED".equalsIgnoreCase(website.getStatus())) {
+
+                status = "PAUSED";
+
+            } else if (!latest.isUp()) {
 
                 status = "DOWN";
                 storm++;

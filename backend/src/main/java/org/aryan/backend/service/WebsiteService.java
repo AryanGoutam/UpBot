@@ -46,6 +46,9 @@ public class WebsiteService {
 
     public Websites updateStatus(Long websiteId, String status, String email) {
 
+        System.out.println("SERVICE WEBSITE ID = " + websiteId);
+        System.out.println("SERVICE STATUS = " + status);
+
         User user = userRepo.findByEmail(email);
 
         if (user == null) {
@@ -55,13 +58,19 @@ public class WebsiteService {
         Websites website = websitesRepo.findById(websiteId)
                 .orElseThrow(() -> new RuntimeException("Website not found"));
 
+        System.out.println("OLD STATUS = " + website.getStatus());
+
         if (!website.getUser().getId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized");
         }
 
         website.setStatus(status);
 
-        return websitesRepo.save(website);
+        Websites saved = websitesRepo.save(website);
+
+        System.out.println("NEW STATUS = " + saved.getStatus());
+
+        return saved;
     }
 
     public void deleteWebsite(Long websiteId, String email) {

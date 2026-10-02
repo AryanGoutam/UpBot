@@ -37,6 +37,10 @@ public class WebsiteController {
     ) {
         String email = authentication.getName();
 
+        System.out.println("WEBSITE ID = " + websiteId);
+        System.out.println("NEW STATUS = " + request.get("status"));
+        System.out.println("USER = " + email);
+
         return websiteService.updateStatus(
                 websiteId,
                 request.get("status"),
