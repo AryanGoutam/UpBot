@@ -555,7 +555,6 @@ const handleRemoveMonitor = async (monitorId) => {
                   )
                 </button>
               </div>
-
               {/* Add monitor */}
               <button
                 onClick={() => setShowAddMonitor(true)}
