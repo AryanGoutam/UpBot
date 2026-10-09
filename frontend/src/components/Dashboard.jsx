@@ -153,6 +153,15 @@ const handleRemoveMonitor = async (monitorId) => {
   }
 };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+
+    // Clear any other user data if you store it
+    localStorage.removeItem("user");
+
+    window.location.href = "/login";
+  };
+
   const getStatusStyle = (status) => {
     switch (status?.toUpperCase()) {
       case "OPERATIONAL":
@@ -361,12 +370,12 @@ const handleRemoveMonitor = async (monitorId) => {
           </div>
 
           <div className="flex items-center gap-7 text-sm text-[#aab9c7]">
-            <button className="flex items-center gap-2 hover:text-white">
+            {/* <button className="flex items-center gap-2 hover:text-white">
               <span>⌂</span>
               Home Deck
-            </button>
+            </button> */}
 
-            <button className="flex items-center gap-2 hover:text-white">
+            <button className="flex items-center gap-2 hover:text-white" onClick={handleLogout}>
               <span>↪</span>
               Sign out
             </button>
@@ -532,7 +541,7 @@ const handleRemoveMonitor = async (monitorId) => {
 
             <div className="flex items-center gap-4">
               {/* Filters */}
-              <div className="flex bg-[#0b1d2d] border border-[#1f3749] rounded-lg p-1">
+              {/* <div className="flex bg-[#0b1d2d] border border-[#1f3749] rounded-lg p-1">
                 <button className="px-4 py-2 rounded-md bg-[#162f43] border border-[#30485a] text-[#eee5d0] text-xs font-semibold">
                   All ({monitors.length})
                 </button>
@@ -554,7 +563,7 @@ const handleRemoveMonitor = async (monitorId) => {
                   }
                   )
                 </button>
-              </div>
+              </div> */}
               {/* Add monitor */}
               <button
                 onClick={() => setShowAddMonitor(true)}
