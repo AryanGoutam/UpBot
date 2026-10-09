@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -92,9 +93,9 @@ public class DashboardService {
     public DashBoardDTO getDashboard(String email) {
 
         User user = userRepo.findByEmail(email);
-        if(user == null){
-            throw new RuntimeException("User Not found");
 
+        if (user == null) {
+            throw new RuntimeException("User not found");
         }
 
         List<Websites> websites = websiteRepo.findByUser(user);
@@ -108,94 +109,145 @@ public class DashboardService {
         double totalUpChecks = 0;
         double totalChecks = 0;
 
-        List<MonitorResponseDTO>monitorResponse = new ArrayList<>();
+        List<MonitorResponseDTO> monitorResponse = new ArrayList<>();
+
         LocalDateTime last24h = LocalDateTime.now().minusHours(24);
 
-        for(Websites website: websites){
-            List<Monitor>checks = monitorRepo.findByWebsiteAndCheckedAtAfter(website, last24h);
+        for (Websites website : websites) {
 
-            Monitor latest = monitorRepo.findTopByWebsiteOrderByCheckedAtDesc(website);
+            List<Monitor> checks =
+                    monitorRepo.findByWebsiteAndCheckedAtAfter(
+                            website, last24h
+                    );
 
+            Monitor latest =
+                    monitorRepo.findTopByWebsiteOrderByCheckedAtDesc(website);
+
+            boolean paused =
+                    "PAUSED".equalsIgnoreCase(website.getStatus());
+
+            // No check history yet
             if (latest == null) {
 
-                MonitorResponseDTO response = new MonitorResponseDTO(
+                String status = paused ? "PAUSED" : "PENDING";
+
+                monitorResponse.add(new MonitorResponseDTO(
                         website.getId(),
                         website.getName(),
                         website.getUrl(),
-                        "OPERATIONAL",
+                        status,
                         null,
                         0.0,
                         website.getCheckInterval(),
                         0,
                         "PENDING",
                         new ArrayList<>()
-                );
+                ));
 
-                monitorResponse.add(response);
                 continue;
             }
-            active++;
 
-            // uptime
-            long upChecks = checks.stream().filter(Monitor::isUp).count();
-            long totalWebsiteCheck = checks.size();
-            double uptime24h = 0;
-            if(totalWebsiteCheck > 0){
-                uptime24h = ((double) upChecks/totalWebsiteCheck  )*100;
+            if (!paused) {
+                active++;
             }
 
-            totalUpChecks += upChecks;
-            totalChecks += totalWebsiteCheck;
+            // Calculate uptime from checks in the last 24 hours
+            long upChecks = checks.stream()
+                    .filter(Monitor::isUp)
+                    .count();
 
-            // current status
+            long totalWebsiteChecks = checks.size();
+
+            double uptime24h = 0.0;
+
+            if (totalWebsiteChecks > 0) {
+                uptime24h =
+                        ((double) upChecks / totalWebsiteChecks) * 100.0;
+
+                totalUpChecks += upChecks;
+                totalChecks += totalWebsiteChecks;
+            }
+
+            // Determine current status
+            // Determine current status using the last 3 checks
 
             String status;
 
-            if ("PAUSED".equalsIgnoreCase(website.getStatus())) {
+            if (paused) {
 
                 status = "PAUSED";
 
-            } else if (!latest.isUp()) {
-
-                status = "DOWN";
-                storm++;
-
-            } else if (
-                    latest.getResponseTime() != null &&
-                            latest.getResponseTime() > 500
-            ) {
-
-                status = "DEGRADED";
-                degraded++;
-
             } else {
 
-                status = "OPERATIONAL";
-                operational++;
+                List<Monitor> recentChecks = new ArrayList<>(checks);
+
+                recentChecks.sort(
+                        Comparator.comparing(Monitor::getCheckedAt).reversed()
+                );
+
+                int limit = Math.min(3, recentChecks.size());
+
+                List<Monitor> lastChecks =
+                        recentChecks.subList(0, limit);
+
+                long failedChecks = lastChecks.stream()
+                        .filter(check -> !check.isUp())
+                        .count();
+
+                long successfulChecks = lastChecks.size() - failedChecks;
+
+                if (lastChecks.isEmpty()) {
+
+                    status = "PENDING";
+
+                } else if (failedChecks >= 2) {
+
+                    status = "DOWN";
+                    storm++;
+
+                } else if (successfulChecks > 0) {
+
+                    Monitor lastSuccessfulCheck = lastChecks.stream()
+                            .filter(Monitor::isUp)
+                            .findFirst()
+                            .orElse(null);
+
+                    if (lastSuccessfulCheck != null
+                            && lastSuccessfulCheck.getResponseTime() != null
+                            && lastSuccessfulCheck.getResponseTime() > 800) {
+
+                        status = "DEGRADED";
+                        degraded++;
+
+                    } else {
+
+                        status = "OPERATIONAL";
+                        operational++;
+                    }
+
+                } else {
+
+                    // Not enough evidence to declare the monitor DOWN
+                    status = "PENDING";
+                }
             }
 
-            // score aand score status
-            int score = calculateScore(
+            // Calculate score
+            int score = paused
+                    ? 0
+                    : calculateScore(
                     uptime24h,
                     latest.getResponseTime(),
                     latest.isUp()
             );
 
-            String scoreStatus =
-                    getScoreStatus(score);
+            String scoreStatus = getScoreStatus(score);
 
-
-
-            //history
+            // History
             List<Double> history = new ArrayList<>();
 
             for (Monitor check : checks) {
-
-                if (check.isUp()) {
-                    history.add(100.0);
-                } else {
-                    history.add(0.0);
-                }
+                history.add(check.isUp() ? 100.0 : 0.0);
             }
 
             MonitorResponseDTO response = new MonitorResponseDTO(
@@ -210,31 +262,25 @@ public class DashboardService {
                     scoreStatus,
                     history
             );
+
             monitorResponse.add(response);
         }
 
-        // overall uptime
-        double overallUptime = 0;
+        // Overall uptime
+        double overallUptime = 0.0;
+
         if (totalChecks > 0) {
-            overallUptime = ((double) totalUpChecks / totalChecks) * 100;
+            overallUptime =
+                    (totalUpChecks / totalChecks) * 100.0;
         }
 
-        String degradedMessage;
-        if(degraded > 0){
-            degradedMessage = "Slight response time lag";
-        }
-        else{
-            degradedMessage = "No degraded monitors";
-        }
+        String degradedMessage = degraded > 0
+                ? "Slight response time lag"
+                : "No degraded monitors";
 
-        String stormMessage;
-        if(storm>0){
-            stormMessage = "Active outage reported";
-
-        }
-        else{
-            stormMessage = "No active outage";
-        }
+        String stormMessage = storm > 0
+                ? "Active outage reported"
+                : "No active outage";
 
         return new DashBoardDTO(
                 total,
@@ -246,9 +292,7 @@ public class DashboardService {
                 degradedMessage,
                 stormMessage,
                 monitorResponse
-
         );
-
     }
 
 
