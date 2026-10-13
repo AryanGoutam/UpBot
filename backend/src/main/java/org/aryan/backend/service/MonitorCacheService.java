@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -56,6 +57,23 @@ public class MonitorCacheService {
     public Map<Object, Object> getLatestResult(Long websiteId) {
         String key = "upbot:monitor:" + websiteId + ":latest";
 
-        return redisTemplate.opsForHash().entries(key);
+        try {
+            Map<Object, Object> result =
+                    redisTemplate.opsForHash().entries(key);
+
+            if (result == null || result.isEmpty()) {
+                return Collections.emptyMap();
+            }
+
+            return result;
+
+        } catch (Exception e) {
+            System.err.println(
+                    "Failed to read monitor result from Redis for website "
+                            + websiteId + ": " + e.getMessage()
+            );
+
+            return Collections.emptyMap();
+        }
     }
 }

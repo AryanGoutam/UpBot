@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @CrossOrigin
@@ -27,6 +28,8 @@ public class DashboardService {
     private WebsiteRepo websiteRepo;
     @Autowired
     private MonitorRepo monitorRepo;
+    @Autowired
+    private MonitorCacheService monitorCacheService;
 
 
     private int calculateScore(
@@ -115,13 +118,77 @@ public class DashboardService {
 
         for (Websites website : websites) {
 
+
             List<Monitor> checks =
                     monitorRepo.findByWebsiteAndCheckedAtAfter(
                             website, last24h
                     );
 
-            Monitor latest =
-                    monitorRepo.findTopByWebsiteOrderByCheckedAtDesc(website);
+           // Try Redis first
+            Map<Object, Object> cachedResult =
+                    monitorCacheService.getLatestResult(website.getId());
+
+            Monitor latest = null;
+
+            boolean hasCachedResult = !cachedResult.isEmpty();
+            // Fetch the latest database record only on a cache miss
+            if (!hasCachedResult) {
+                latest = monitorRepo.findTopByWebsiteOrderByCheckedAtDesc(
+                        website
+                );
+            }
+
+            // Handle websites with no monitoring result anywhere
+            if (!hasCachedResult && latest == null) {
+
+                boolean paused =
+                        "PAUSED".equalsIgnoreCase(website.getStatus());
+
+                String status = paused ? "PAUSED" : "PENDING";
+
+                monitorResponse.add(new MonitorResponseDTO(
+                        website.getId(),
+                        website.getName(),
+                        website.getUrl(),
+                        status,
+                        null,
+                        0.0,
+                        website.getCheckInterval(),
+                        0,
+                        "PENDING",
+                        new ArrayList<>()
+                ));
+
+                continue;
+            }
+
+            // Read the latest result from Redis or the database
+            boolean latestIsUp;
+            Long latestResponseTime;
+
+            if (hasCachedResult) {
+
+                latestIsUp = Boolean.parseBoolean(
+                        String.valueOf(cachedResult.get("isUp"))
+                );
+
+                Object responseTimeValue =
+                        cachedResult.get("responseTime");
+
+                latestResponseTime =
+                        responseTimeValue == null
+                                || String.valueOf(responseTimeValue).isBlank()
+                                ? null
+                                : Long.parseLong(
+                                String.valueOf(responseTimeValue)
+                        );
+
+            } else {
+
+                latestIsUp = latest.isUp();
+                latestResponseTime = latest.getResponseTime();
+            }
+
 
             boolean paused =
                     "PAUSED".equalsIgnoreCase(website.getStatus());
@@ -237,8 +304,8 @@ public class DashboardService {
                     ? 0
                     : calculateScore(
                     uptime24h,
-                    latest.getResponseTime(),
-                    latest.isUp()
+                    latestResponseTime,
+                    latestIsUp
             );
 
             String scoreStatus = getScoreStatus(score);
