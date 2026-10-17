@@ -13,7 +13,10 @@ import java.util.List;
 public interface MonitorRepo  extends JpaRepository<Monitor, Long> {
     List<Monitor> findByWebsite(Websites website);
 
-    List<Monitor> findByWebsiteAndCheckedAtAfter(Websites website, LocalDateTime last24h);
+    List<Monitor> findByWebsiteAndCheckedAtAfterOrderByCheckedAtAsc(
+            Websites website,
+            LocalDateTime last24h
+    );
 
     Monitor findTopByWebsiteOrderByCheckedAtDesc(Websites website);
 }

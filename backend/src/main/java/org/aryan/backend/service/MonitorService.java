@@ -14,6 +14,12 @@ import org.springframework.web.client.RestClient;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.Map;
+import java.util.Set;
+
 @Service
 public class MonitorService {
 
@@ -21,17 +27,20 @@ public class MonitorService {
     private final MonitorRepo monitorRepo;
     private final RestClient restClient;
     private final MonitorCacheService monitorCacheService;
+    private final ObjectMapper objectMapper;
 
     public MonitorService(
             WebsiteRepo websiteRepo,
             MonitorRepo monitorRepo,
             RestClient restClient,
-            MonitorCacheService monitorCacheService
+            MonitorCacheService monitorCacheService,
+            ObjectMapper objectMapper
     ) {
         this.websiteRepo = websiteRepo;
         this.monitorRepo = monitorRepo;
         this.restClient = restClient;
         this.monitorCacheService = monitorCacheService;
+        this.objectMapper = objectMapper;
     }
 
     public void checkWebsite(Websites websites) {
@@ -101,15 +110,69 @@ public class MonitorService {
         }
     }
 
+    private MonitorResultDto toMonitorResultDto(String json) {
+        try {
+            Map<String, String> result = objectMapper.readValue(
+                    json,
+                    new TypeReference<Map<String, String>>() {}
+            );
+
+            String statusCode = result.get("statusCode");
+
+            return new MonitorResultDto(
+                    LocalDateTime.parse(result.get("checkedAt")),
+                    Boolean.parseBoolean(result.get("isUp")),
+                    statusCode == null || statusCode.isBlank()
+                            ? null : Integer.parseInt(statusCode),
+                    Long.parseLong(result.get("responseTime")),
+                    result.get("errorMessage")
+            );
+
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    "Failed to parse cached monitor result", e
+            );
+        }
+    }
+
+
     public List<MonitorResultDto> getMonitorResult(Long websiteId) {
 
         Websites website = websiteRepo.findById(websiteId)
                 .orElseThrow();
 
-        List<Monitor> monitorsList =
-                monitorRepo.findByWebsite(website);
+        LocalDateTime cutoff = LocalDateTime.now().minusHours(24);
 
-        return monitorsList.stream()
+        // If Redis history is initialized, read from cache first.
+        try {
+            if (monitorCacheService.isHistoryInitialized(websiteId)) {
+
+                Set<String> cachedResults =
+                        monitorCacheService.getLast24HoursResults(websiteId);
+
+                if (cachedResults != null && !cachedResults.isEmpty()) {
+                    return cachedResults.stream()
+                            .map(this::toMonitorResultDto)
+                            .sorted(java.util.Comparator.comparing(
+                                    MonitorResultDto::checkedAt
+                            ))
+                            .toList();
+                }
+            }
+        } catch (Exception e) {
+            System.err.println(
+                    "Redis history read failed for website "
+                            + websiteId + ": " + e.getMessage()
+            );
+        }
+
+        // Cache miss: load the last 24 hours from PostgreSQL.
+        List<Monitor> monitorsList =
+                monitorRepo.findByWebsiteAndCheckedAtAfterOrderByCheckedAtAsc(
+                        website, cutoff
+                );
+
+        List<MonitorResultDto> results = monitorsList.stream()
                 .map(result -> new MonitorResultDto(
                         result.getCheckedAt(),
                         result.isUp(),
@@ -118,5 +181,47 @@ public class MonitorService {
                         result.getErrorMessage()
                 ))
                 .toList();
+
+        // Warm up Redis. A Redis failure must not prevent the DB response.
+        try {
+            for (Monitor monitor : monitorsList) {
+                monitorCacheService.cacheHistoricalResult(
+                        websiteId,
+                        monitor.isUp(),
+                        monitor.getStatusCode(),
+                        monitor.getResponseTime(),
+                        monitor.getCheckedAt(),
+                        monitor.getErrorMessage()
+                );
+            }
+
+            // Populate the latest-result hash with the newest DB record.
+            if (!monitorsList.isEmpty()) {
+                Monitor latest = monitorsList.get(monitorsList.size() - 1);
+
+                monitorCacheService.cacheLatestResult(
+                        websiteId,
+                        latest.isUp(),
+                        latest.getStatusCode(),
+                        latest.getResponseTime(),
+                        latest.getCheckedAt(),
+                        latest.getErrorMessage()
+                );
+            }
+
+            // Mark initialized only after the history load succeeds.
+            monitorCacheService.markHistoryInitialized(websiteId);
+
+        } catch (Exception e) {
+            System.err.println(
+                    "Redis warm-up failed for website "
+                            + websiteId + ": " + e.getMessage()
+            );
+        }
+
+        return results;
     }
+
+
+
 }
