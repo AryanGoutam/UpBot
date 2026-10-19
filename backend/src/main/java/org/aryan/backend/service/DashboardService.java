@@ -5,7 +5,7 @@ import org.aryan.backend.model.User;
 import org.aryan.backend.model.Websites;
 import org.aryan.backend.model.dto.DashBoardDTO;
 import org.aryan.backend.model.dto.MonitorResponseDTO;
-import org.aryan.backend.repo.MonitorRepo;
+import org.aryan.backend.model.dto.MonitorResultDto;
 import org.aryan.backend.repo.UserRepo;
 import org.aryan.backend.repo.WebsiteRepo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,9 +27,9 @@ public class DashboardService {
     @Autowired
     private WebsiteRepo websiteRepo;
     @Autowired
-    private MonitorRepo monitorRepo;
-    @Autowired
-    private MonitorCacheService monitorCacheService;
+    private MonitorService monitorService;
+
+
 
 
     private int calculateScore(
@@ -116,84 +116,27 @@ public class DashboardService {
 
         LocalDateTime last24h = LocalDateTime.now().minusHours(24);
 
+
         for (Websites website : websites) {
 
-
-            List<Monitor> checks =
-                    monitorRepo.findByWebsiteAndCheckedAtAfter(
-                            website, last24h
-                    );
-
-           // Try Redis first
-            Map<Object, Object> cachedResult =
-                    monitorCacheService.getLatestResult(website.getId());
-
-            Monitor latest = null;
-
-            boolean hasCachedResult = !cachedResult.isEmpty();
-            // Fetch the latest database record only on a cache miss
-            if (!hasCachedResult) {
-                latest = monitorRepo.findTopByWebsiteOrderByCheckedAtDesc(
-                        website
-                );
-            }
-
-            // Handle websites with no monitoring result anywhere
-            if (!hasCachedResult && latest == null) {
-
-                boolean paused =
-                        "PAUSED".equalsIgnoreCase(website.getStatus());
-
-                String status = paused ? "PAUSED" : "PENDING";
-
-                monitorResponse.add(new MonitorResponseDTO(
-                        website.getId(),
-                        website.getName(),
-                        website.getUrl(),
-                        status,
-                        null,
-                        0.0,
-                        website.getCheckInterval(),
-                        0,
-                        "PENDING",
-                        new ArrayList<>()
-                ));
-
-                continue;
-            }
-
-            // Read the latest result from Redis or the database
-            boolean latestIsUp;
-            Long latestResponseTime;
-
-            if (hasCachedResult) {
-
-                latestIsUp = Boolean.parseBoolean(
-                        String.valueOf(cachedResult.get("isUp"))
-                );
-
-                Object responseTimeValue =
-                        cachedResult.get("responseTime");
-
-                latestResponseTime =
-                        responseTimeValue == null
-                                || String.valueOf(responseTimeValue).isBlank()
-                                ? null
-                                : Long.parseLong(
-                                String.valueOf(responseTimeValue)
-                        );
-
-            } else {
-
-                latestIsUp = latest.isUp();
-                latestResponseTime = latest.getResponseTime();
-            }
-
+            // MonitorService handles Redis/cache and database fallback.
+            List<MonitorResultDto> checks =
+                    monitorService.getMonitorResult(website.getId());
 
             boolean paused =
                     "PAUSED".equalsIgnoreCase(website.getStatus());
 
-            // No check history yet
+            // Latest check is the most recent check.
+            List<MonitorResultDto> recentChecks = new ArrayList<>(checks);
+
+            recentChecks.sort(
+                    Comparator.comparing(MonitorResultDto::checkedAt).reversed()
+            );
+
+            MonitorResultDto latest =
+                    recentChecks.isEmpty() ? null : recentChecks.get(0);
+
+            // No monitoring result anywhere.
             if (latest == null) {
 
                 String status = paused ? "PAUSED" : "PENDING";
@@ -218,9 +161,9 @@ public class DashboardService {
                 active++;
             }
 
-            // Calculate uptime from checks in the last 24 hours
+            // Calculate uptime using the checks returned by MonitorService.
             long upChecks = checks.stream()
-                    .filter(Monitor::isUp)
+                    .filter(MonitorResultDto::up)
                     .count();
 
             long totalWebsiteChecks = checks.size();
@@ -235,9 +178,7 @@ public class DashboardService {
                 totalChecks += totalWebsiteChecks;
             }
 
-            // Determine current status
-            // Determine current status using the last 3 checks
-
+            // Determine current status from the last three checks.
             String status;
 
             if (paused) {
@@ -246,19 +187,13 @@ public class DashboardService {
 
             } else {
 
-                List<Monitor> recentChecks = new ArrayList<>(checks);
-
-                recentChecks.sort(
-                        Comparator.comparing(Monitor::getCheckedAt).reversed()
-                );
-
                 int limit = Math.min(3, recentChecks.size());
 
-                List<Monitor> lastChecks =
+                List<MonitorResultDto> lastChecks =
                         recentChecks.subList(0, limit);
 
                 long failedChecks = lastChecks.stream()
-                        .filter(check -> !check.isUp())
+                        .filter(check -> !check.up())
                         .count();
 
                 long successfulChecks = lastChecks.size() - failedChecks;
@@ -274,14 +209,14 @@ public class DashboardService {
 
                 } else if (successfulChecks > 0) {
 
-                    Monitor lastSuccessfulCheck = lastChecks.stream()
-                            .filter(Monitor::isUp)
+                    MonitorResultDto lastSuccessfulCheck = lastChecks.stream()
+                            .filter(MonitorResultDto::up)
                             .findFirst()
                             .orElse(null);
 
                     if (lastSuccessfulCheck != null
-                            && lastSuccessfulCheck.getResponseTime() != null
-                            && lastSuccessfulCheck.getResponseTime() > 800) {
+                            && lastSuccessfulCheck.responseTime() != null
+                            && lastSuccessfulCheck.responseTime() > 800) {
 
                         status = "DEGRADED";
                         degraded++;
@@ -294,27 +229,26 @@ public class DashboardService {
 
                 } else {
 
-                    // Not enough evidence to declare the monitor DOWN
                     status = "PENDING";
                 }
             }
 
-            // Calculate score
+            // Calculate score from the latest check.
             int score = paused
                     ? 0
                     : calculateScore(
                     uptime24h,
-                    latestResponseTime,
-                    latestIsUp
+                    latest.responseTime(),
+                    latest.up()
             );
 
             String scoreStatus = getScoreStatus(score);
 
-            // History
+            // Build uptime history.
             List<Double> history = new ArrayList<>();
 
-            for (Monitor check : checks) {
-                history.add(check.isUp() ? 100.0 : 0.0);
+            for (MonitorResultDto check : checks) {
+                history.add(check.up() ? 100.0 : 0.0);
             }
 
             MonitorResponseDTO response = new MonitorResponseDTO(
@@ -322,7 +256,7 @@ public class DashboardService {
                     website.getName(),
                     website.getUrl(),
                     status,
-                    latest.getResponseTime(),
+                    latest.responseTime(),
                     uptime24h,
                     website.getCheckInterval(),
                     score,
@@ -332,6 +266,7 @@ public class DashboardService {
 
             monitorResponse.add(response);
         }
+
 
         // Overall uptime
         double overallUptime = 0.0;
